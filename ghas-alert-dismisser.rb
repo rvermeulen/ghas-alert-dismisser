@@ -19,6 +19,11 @@ OptionParser.new do |parser|
     parser.on("-d", "--dry-run", "Do a dry run that doesn't perform the action.") do
         $options[:verbose] = true
     end
+
+    parser.on("-h", "--help", "Prints this help") do
+        puts parser
+        exit
+    end
 end.parse!
 
 github_token = load_gh_token($options[:host].nil? ? "github.com" : $options[:host].host)
