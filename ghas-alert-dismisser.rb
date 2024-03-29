@@ -86,19 +86,19 @@ def in_repository?(repo, alert)
             location_parts.each do |part|
                 tree_index = tree.tree.index { |object| object.path == part}
                 unless tree_index
-                    puts "Not found in #{location} at part #{part}" if $options[:verbose]
+                    puts "Not found alert location '#{location}' at part '#{part}'" if $options[:verbose]
                     if previous_tree
-                        puts "Fetching tree for #{previous_tree.path}" if $options[:verbose]
+                        puts "Fetching tree for '#{previous_tree.path}'" if $options[:verbose]
                         subtree = $client.tree(repo.id, previous_tree.sha, :recursive => true)
                         $cached_trees[repo][ref].tree.concat(subtree.tree)
                         
                         tree_index = tree.tree.index { |object| object.path == part}
                         unless tree_index
-                            puts "Nothing found for #{part} after fetching #{previous_tree.path}" if $options[:verbose]
+                            puts "Nothing found for '#{part}' after fetching '#{previous_tree.path}'" if $options[:verbose]
                             return false
                         end
                     else
-                        puts "Nothing found for #{part}" if $options[:verbose]
+                        puts "Nothing found for '#{part}'" if $options[:verbose]
                         return false
                     end
                 end
@@ -121,7 +121,7 @@ end
 open_alerts.each do |repo, alerts|
     alerts.each do |alert|
         unless in_repository?(repo, alert)
-            puts "Closing #{alert.rule.id} in #{repo.full_name} because #{alert.most_recent_instance.location.path} is not in the repository" if $options[:verbose]
+            puts "Closing #{alert.rule.id} in '#{repo.full_name}' because '#{alert.most_recent_instance.location.path}' is not in the repository" if $options[:verbose]
             unless $options[:dry_run]
                 begin
                     $client.update_code_scanning_alerts(repo.owner.login, repo.name, alert.number, "dismissed", {dismissed_reason: "won't fix", dismissed_comment: "This alert's location is not in the repository"})
