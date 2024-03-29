@@ -8,7 +8,7 @@ require_relative 'lib/helpers.rb'
 
 $options = {}
 OptionParser.new do |parser|
-    parser.banner = "Usage: app.rb [options] \"OWNER/REPO\" [\"OWNER/REPO\" ...]"
+    parser.banner = "Usage: #{$0} [options] \"OWNER/REPO\" [\"OWNER/REPO\" ...]"
     parser.on("-h GITHUB_HOST", "--host GITHUB_HOST", URI, "The GitHub host to connect to") do |host|
         $options[:host] = host
     end
