@@ -83,34 +83,42 @@ def in_repository?(repo, alert)
 
     tree = $cached_trees[repo][ref]
     unless tree.tree.index { |object| object.path == location}
-        unless tree.truncated
-            puts "Fetching full tree for #{repo.full_name} at #{ref}" if $options[:verbose]
+        puts "Not found alert location '#{location}'" if $options[:verbose]
+        if location.include?("/")
+            puts "Location is part of missing subtree, preparing fetch of subtree" if $options[:verbose]
             location_parts = location.split("/")
             previous_tree = nil
+            previous_tree_full_path = ""
+            partial_path = ""
             location_parts.each do |part|
-                tree_index = tree.tree.index { |object| object.path == part}
+                partial_path += partial_path != "" ? "/#{part}" : part
+                puts "Checking partial path '#{partial_path}'" if $options[:verbose]
+                tree_index = tree.tree.index { |object| object.path == partial_path}
                 unless tree_index
-                    puts "Not found alert location '#{location}' at part '#{part}'" if $options[:verbose]
+                    puts "Not found object for partial path '#{partial_path}'" if $options[:verbose]
                     if previous_tree
                         puts "Fetching tree for '#{previous_tree.path}'" if $options[:verbose]
-                        subtree = $client.tree(repo.id, previous_tree.sha, :recursive => true)
-                        $cached_trees[repo][ref].tree.concat(subtree.tree)
-                        
-                        tree_index = tree.tree.index { |object| object.path == part}
+                        subtree = $client.tree(repo.id, previous_tree.sha)
+                        resolved_subtree = subtree.tree.map { |object| object.path = "#{previous_tree_full_path}/#{object.path}"; object }
+                        tree.tree.concat(resolved_subtree)
+
+                        tree_index = tree.tree.index { |object| object.path == partial_path}
                         unless tree_index
-                            puts "Nothing found for '#{part}' after fetching '#{previous_tree.path}'" if $options[:verbose]
+                            puts "Nothing found for partial path '#{partial_path}' after fetching '#{previous_tree.path}'" if $options[:verbose]
                             return false
                         end
                     else
-                        puts "Nothing found for '#{part}'" if $options[:verbose]
+                        puts "Nothing found for partial path '#{partial_path}'" if $options[:verbose]
                         return false
                     end
                 end
 
                 object = tree.tree[tree_index]
+                puts "Found object #{object.url} with path #{object.path} for partial path '#{partial_path}'" if $options[:verbose]
 
                 if object.type == "tree"
                     previous_tree = object 
+                    previous_tree_full_path = partial_path
                 elsif object.type == "blob"
                     return true
                 end
