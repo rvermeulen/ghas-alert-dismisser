@@ -67,6 +67,7 @@ open_alerts = {}
 
 $cached_trees = {}
 def in_repository?(repo, alert)
+    puts "Checking #{alert.html_url} for path '#{alert.most_recent_instance.location.path}'" if $options[:verbose]
     location = alert.most_recent_instance.location.path
     unless $cached_trees.include?(repo)
         $cached_trees[repo] = {}
@@ -74,7 +75,10 @@ def in_repository?(repo, alert)
 
     ref = alert.most_recent_instance.ref
     unless $cached_trees[repo].include?(ref)
-        $cached_trees[repo][ref] = $client.tree(repo.id, ref, :recursive => true)
+        puts "Fetching tree for #{repo.full_name} at #{ref}" if $options[:verbose]
+        tree = $client.tree(repo.id, ref)
+        puts "Tree #{tree.url} at #{tree.sha}" if $options[:verbose]
+        $cached_trees[repo][ref] = tree
     end
 
     tree = $cached_trees[repo][ref]
@@ -121,14 +125,14 @@ end
 open_alerts.each do |repo, alerts|
     alerts.each do |alert|
         unless in_repository?(repo, alert)
-            puts "Closing #{alert.rule.id} in '#{repo.full_name}' because '#{alert.most_recent_instance.location.path}' is not in the repository" if $options[:verbose]
+            puts "Closing #{alert.html_url} because is not in the repository" if $options[:verbose]
             unless $options[:dry_run]
                 begin
                     $client.update_code_scanning_alerts(repo.owner.login, repo.name, alert.number, "dismissed", {dismissed_reason: "won't fix", dismissed_comment: "This alert's location is not in the repository"})
                 rescue Octokit::Unauthorized
                     STDERR.puts "Unauthorized to dismiss alert #{alert.number} in #{repo.full_name}"
                 rescue Octokit::NotFound
-                    STDERR.puts "Did not find alert #{alert_number} to update dismiss in #{repo.full_name}"
+                    STDERR.puts "Did not find alert #{alert.number} to dismiss in #{repo.full_name}"
                 end
             end
         end
