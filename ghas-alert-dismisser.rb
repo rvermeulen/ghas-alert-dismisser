@@ -17,7 +17,7 @@ OptionParser.new do |parser|
     end
     
     parser.on("-d", "--dry-run", "Do a dry run that doesn't perform the action.") do
-        $options[:verbose] = true
+        $options[:dry_run] = true
     end
 
     parser.on("-h", "--help", "Prints this help") do
