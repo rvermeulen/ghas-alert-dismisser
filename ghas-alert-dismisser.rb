@@ -133,7 +133,7 @@ end
 open_alerts.each do |repo, alerts|
     alerts.each do |alert|
         unless in_repository?(repo, alert)
-            puts "Closing #{alert.html_url} because is not in the repository" if $options[:verbose]
+            puts "Closing #{alert.html_url} because is not in the repository" 
             unless $options[:dry_run]
                 begin
                     $client.update_code_scanning_alerts(repo.owner.login, repo.name, alert.number, "dismissed", {dismissed_reason: "won't fix", dismissed_comment: "This alert's location is not in the repository"})
