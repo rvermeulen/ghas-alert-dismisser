@@ -2,7 +2,7 @@ module Octokit
     class Client
         module CodeScanning
             def get_code_scanning_alerts(owner, repo, options = {})
-                get("/repos/#{owner}/#{repo}/code-scanning/alerts", options)
+                paginate("/repos/#{owner}/#{repo}/code-scanning/alerts", options)
             end
             
             def update_code_scanning_alerts(owner, repo, alert_number, state, options = {})
