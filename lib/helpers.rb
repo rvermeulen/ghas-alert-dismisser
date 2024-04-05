@@ -104,7 +104,7 @@ module UsingGit
             abort "The alert associated with ref #{alert.most_recent_instance.ref} cannot be validated against repository at #{repo.local_path} with ref #{@@cached_refs[repo]}" 
         end
         if File.exist?(File.join(repo.local_path, alert.most_recent_instance.location.path))
-            @@cached_untracked_files[repo] ||= Dir.chdir(repo.local_path) { `git ls-files --others` } 
+            @@cached_untracked_files[repo] ||= Dir.chdir(repo.local_path) { `git ls-files --others` }.lines(chomp: true) 
             if @@cached_untracked_files[repo].include?(alert.most_recent_instance.location.path)
                 puts "Found alert location '#{alert.most_recent_instance.location.path}' as untracked file" if $options[:verbose]
                 return false
