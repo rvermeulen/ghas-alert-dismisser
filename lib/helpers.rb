@@ -29,7 +29,7 @@ module UsingGhApi
 
     @@cached_trees = {}
     def self.in_repository?(client, repo, alert)
-        puts "Checking #{alert.html_url} for path '#{alert.most_recent_instance.location.path}'" if $options[:verbose]
+        puts "Checking #{alert.html_url} for path '#{alert.most_recent_instance.location.path}'" if $options.verbose
         location = alert.most_recent_instance.location.path
         unless @@cached_trees.include?(repo)
             @@cached_trees[repo] = {}
@@ -37,46 +37,46 @@ module UsingGhApi
 
         ref = alert.most_recent_instance.ref
         unless @@cached_trees[repo].include?(ref)
-            puts "Fetching tree for #{repo.full_name} at #{ref}" if $options[:verbose]
+            puts "Fetching tree for #{repo.full_name} at #{ref}" if $options.verbose
             tree = client.tree(repo.id, ref)
-            puts "Tree #{tree.url} at #{tree.sha}" if $options[:verbose]
+            puts "Tree #{tree.url} at #{tree.sha}" if $options.verbose
             @@cached_trees[repo][ref] = tree
         end
 
         tree = @@cached_trees[repo][ref]
         unless tree.tree.index { |object| object.path == location}
-            puts "Not found alert location '#{location}'" if $options[:verbose]
+            puts "Not found alert location '#{location}'" if $options.verbose
             if location.include?("/")
-                puts "Location is part of missing subtree, preparing fetch of subtree" if $options[:verbose]
+                puts "Location is part of missing subtree, preparing fetch of subtree" if $options.verbose
                 location_parts = location.split("/")
                 previous_tree = nil
                 previous_tree_full_path = ""
                 partial_path = ""
                 location_parts.each do |part|
                     partial_path += partial_path != "" ? "/#{part}" : part
-                    puts "Checking partial path '#{partial_path}'" if $options[:verbose]
+                    puts "Checking partial path '#{partial_path}'" if $options.verbose
                     tree_index = tree.tree.index { |object| object.path == partial_path}
                     unless tree_index
-                        puts "Not found object for partial path '#{partial_path}'" if $options[:verbose]
+                        puts "Not found object for partial path '#{partial_path}'" if $options.verbose
                         if previous_tree
-                            puts "Fetching tree for '#{previous_tree.path}'" if $options[:verbose]
+                            puts "Fetching tree for '#{previous_tree.path}'" if $options.verbose
                             subtree = client.tree(repo.id, previous_tree.sha)
                             resolved_subtree = subtree.tree.map { |object| object.path = "#{previous_tree_full_path}/#{object.path}"; object }
                             tree.tree.concat(resolved_subtree)
 
                             tree_index = tree.tree.index { |object| object.path == partial_path}
                             unless tree_index
-                                puts "Nothing found for partial path '#{partial_path}' after fetching '#{previous_tree.path}'" if $options[:verbose]
+                                puts "Nothing found for partial path '#{partial_path}' after fetching '#{previous_tree.path}'" if $options.verbose
                                 return false
                             end
                         else
-                            puts "Nothing found for partial path '#{partial_path}'" if $options[:verbose]
+                            puts "Nothing found for partial path '#{partial_path}'" if $options.verbose
                             return false
                         end
                     end
 
                     object = tree.tree[tree_index]
-                    puts "Found object #{object.url} with path #{object.path} for partial path '#{partial_path}'" if $options[:verbose]
+                    puts "Found object #{object.url} with path #{object.path} for partial path '#{partial_path}'" if $options.verbose
 
                     if object.type == "tree"
                         previous_tree = object 
@@ -98,22 +98,22 @@ module UsingGit
     @@cached_untracked_files = {}
     @@cached_refs = {}
     def self.in_repository?(repo, alert)
-        puts "Checking #{repo.local_path} for path '#{alert.most_recent_instance.location.path}'" if $options[:verbose]
-        @@cached_refs[repo] ||= Dir.chdir(repo.local_path) { `git rev-parse --symbolic-full-name HEAD` }.strip
+        puts "Checking #{repo.git_path} for path '#{alert.most_recent_instance.location.path}'" if $options.verbose
+        @@cached_refs[repo] ||= Dir.chdir(repo.git_path) { `git rev-parse --symbolic-full-name HEAD` }.strip
         unless @@cached_refs[repo] == alert.most_recent_instance.ref
-            abort "The alert associated with ref #{alert.most_recent_instance.ref} cannot be validated against repository at #{repo.local_path} with ref #{@@cached_refs[repo]}" 
+            abort "The alert associated with ref #{alert.most_recent_instance.ref} cannot be validated against repository at #{repo.git_path} with ref #{@@cached_refs[repo]}" 
         end
-        if File.exist?(File.join(repo.local_path, alert.most_recent_instance.location.path))
-            @@cached_untracked_files[repo] ||= Dir.chdir(repo.local_path) { `git ls-files --others` }.lines(chomp: true) 
+        if File.exist?(File.join(repo.git_path, alert.most_recent_instance.location.path))
+            @@cached_untracked_files[repo] ||= Dir.chdir(repo.git_path) { `git ls-files --others` }.lines(chomp: true) 
             if @@cached_untracked_files[repo].include?(alert.most_recent_instance.location.path)
-                puts "Found alert location '#{alert.most_recent_instance.location.path}' as untracked file" if $options[:verbose]
+                puts "Found alert location '#{alert.most_recent_instance.location.path}' as untracked file" if $options.verbose
                 return false
             else
-                puts "Found alert location '#{alert.most_recent_instance.location.path}' as tracked file" if $options[:verbose]
+                puts "Found alert location '#{alert.most_recent_instance.location.path}' as tracked file" if $options.verbose
                 return true
             end
         else
-            puts "Did not find alert location '#{alert.most_recent_instance.location.path}'" if $options[:verbose]
+            puts "Did not find alert location '#{alert.most_recent_instance.location.path}'" if $options.verbose
             return false
         end
     end
