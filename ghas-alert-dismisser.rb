@@ -7,15 +7,19 @@ require_relative 'lib/code-scanning.rb'
 require_relative 'lib/helpers.rb'
 
 Repo = Struct.new(:nwo, :git_path, :sarif_path, :repo_obj)
+Alert = Struct.new(:number, :id, :ref, :path, :url)
 
 class ScriptOptions
-    attr_accessor :repos, :verbose, :host, :dry_run
+    attr_accessor :repos, :verbose, :host, :dry_run, :in_place, :suffix, :backup_ext
 
     def initialize
         self.repos= []
         self.verbose = false
         self.host = nil
         self.dry_run = false
+        self.in_place = false
+        self.suffix = "-without-dismissed-alerts"
+        self.backup_ext = nil
     end
 
     def define_options(parser)
@@ -45,6 +49,16 @@ class ScriptOptions
             end
                 
             self.repos << r 
+        end
+
+        parser.on("-i", "--in-place [EXTENSION]", "Overwrite the SARIF file with the dismissed alerts.") do |ext|
+            self.in_place = true
+            self.backup_ext = ext
+            self.backup_ext.sub!(/\A\.?(?=.)/, ".")  unless self.backup_ext.nil? # Ensure extension begins with dot.
+        end
+
+        parser.on("-s SUFFIX", "--suffix SUFFIX", "The suffix to append to the SARIF file when not in-place.") do |s|
+            self.suffix = s
         end
         
         parser.on("-h", "--help", "Prints this help") do
@@ -90,12 +104,14 @@ $options.repos.each do |repo|
     repo.repo_obj = $client.repo(repo.nwo)
 end
 
-open_alerts = {}
+alerts_per_repo = {}
 $options.repos.each do |repo|
-    open_alerts[repo] = UsingGhApi::get_alerts($client, repo.repo_obj)
+    alerts_per_repo[repo] = UsingGhApi::get_alerts($client, repo.repo_obj) if repo.sarif_path.nil?
+    alerts_per_repo[repo] = UsingSarif::get_alerts(repo) if repo.sarif_path
 end
 
-open_alerts.each do |repo, alerts|
+alerts_per_repo.each do |repo, alerts|
+    alerts_to_dismiss = []
     alerts.each do |alert|
         def in_repository?(repo, alert)
             if repo.git_path
@@ -105,16 +121,13 @@ open_alerts.each do |repo, alerts|
             end
         end
         unless in_repository?(repo, alert)
-            puts "Closing #{alert.html_url} because is not in the repository" 
-            unless $options.dry_run
-                begin
-                    $client.update_code_scanning_alerts(repo.repo_obj.owner.login, repo.repo_obj.name, alert.number, "dismissed", {dismissed_reason: "won't fix", dismissed_comment: "This alert's location is not in the repository"})
-                rescue Octokit::Unauthorized
-                    STDERR.puts "Unauthorized to dismiss alert #{alert.number} in #{repo_obj.full_name}"
-                rescue Octokit::NotFound
-                    STDERR.puts "Did not find alert #{alert.number} to dismiss in #{repo_obj.full_name}"
-                end
-            end
+            puts "Dismissing #{alert.path} because is not in the repository" 
+            alerts_to_dismiss << alert
         end
+    end
+    
+    unless $options.dry_run
+        UsingGhApi::dismiss_alerts($client, repo.repo_obj, alerts_to_dismiss) if repo.sarif_path.nil?
+        UsingSarif::dismiss_alerts(repo, alerts_to_dismiss) if repo.sarif_path
     end
 end
